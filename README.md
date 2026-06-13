@@ -1,25 +1,25 @@
 # InterviewIQ AI - Production-Grade AI Mock Interview Platform
 
-InterviewIQ AI is an intelligent interview preparation SaaS platform designed to simulate real-world technical, behavioral (HR), coding, and custom interviews. Powered by advanced AI logic, Web Speech APIs, and sandbox code compilation, it offers candidates instant evaluations, granular metric feedback, and automated skill-mapping roadmaps to build confidence and communication.
+InterviewIQ AI is an intelligent interview preparation SaaS platform designed to simulate real-world technical, behavioral (HR), coding, and project viva mock interviews. Powered by advanced AI logic, Web Speech APIs, and sandbox code compilation, it offers candidates instant evaluations, granular metric feedback, and automated skill-mapping roadmaps to build confidence and communication.
 
 ---
 
-## 🌟 Version 2 Feature Upgrades
-In Version 2, we introduced a suite of advanced features focusing on personalization, company-specific style simulations, and recruiter-level project evaluations:
+## 🌟 Key Capabilities
+InterviewIQ AI features a suite of advanced mock interview tools to simulate actual recruiter evaluations:
 
 *   **Project Viva Mode:** Extracts projects, skills, and technologies from parsed resumes and generates targeted project viva questions across Beginner, Intermediate, and Advanced tiers.
-*   **Company Interview Mode:** Simulates actual interview styles for **TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini, HCL, Tech Mahindra, and Amazon** (including specific DSA coding challenges and Leadership Principles behavioral checks).
-*   **AI Interview Memory:** Automatically feeds historically weak areas back into subsequent mock rounds to ensure candidates focus on topics needing review.
-*   **Weak Topic Tracking System:** Persists topics with scores below 60% in a dedicated collection (`WeakTopic`) to track candidate improvement over time (e.g. *"DBMS improved from 45% to 72%"*).
-*   **Company Performance Analytics:** Dynamic cards tracking mock attempts, average scores, and best performance metrics across supported firms.
-*   **Career Readiness Score V2:** A comprehensive capability index calculated dynamically as:
+*   **Company Interview Mode:** Simulates actual interview structures and questions for **TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini, HCL, Tech Mahindra, and Amazon** (including specific DSA coding challenges and behavioral checks mapping to Amazon Leadership Principles).
+*   **AI Interview Memory:** Tracks historically weak topics and adaptively feeds those concepts back into subsequent mock rounds to ensure candidates focus on topics needing review.
+*   **Weak Topic Tracking System:** Persists topics with scores below 60% in a dedicated `WeakTopic` collection to track candidate improvement over time (e.g. *"DBMS improved from 45% to 72%"*).
+*   **Career Readiness Score:** A comprehensive capability index calculated dynamically as:
     $$\text{Career Readiness} = 35\% \times \text{Mock Interview} + 30\% \times \text{Coding Arena} + 20\% \times \text{Resume ATS} + 15\% \times \text{Consistency Index}$$
+*   **Interactive Coding Arena:** An integrated compiler playground supporting JavaScript execution in a safe vm container.
 *   **Advanced Dashboard Widgets:** Opaque, responsive grids rendering Career Readiness dial charts, difficulty analysis accuracies (Easy, Medium, Hard), syllabus strong areas, and Project Viva scorecards.
 
 ---
 
-## 🏗️ Project Architecture Overview
-The platform uses a decoupled client-server architecture:
+## 🏗️ Project Architecture
+The platform is built using a decoupled client-server architecture:
 
 ```
 interviewiq-ai/
@@ -110,16 +110,14 @@ FRONTEND_URL=http://localhost:3000
 *   `GET /api/interviews/:id` - Fetch details of a completed mock interview.
 
 ### Dashboard & Analytics (`/api/dashboard`)
-*   `GET /api/dashboard/summary` - Computes and lists V2 widget analytics, timelines, weak/strong topics, company metrics, and Career Readiness Score V2.
+*   `GET /api/dashboard/summary` - Computes and lists widget analytics, timelines, weak/strong topics, company metrics, and Career Readiness.
 
 ### Resume Intelligence (`/api/resumes`)
 *   `POST /api/resumes/upload` - Upload PDF resume, extract skill gaps, and parse project lists for Viva mode.
 
 ---
 
-## 🖥️ Screenshots
-*(Place screenshots demonstrating mockup previews here)*
-
+## 🖥️ Screen Layouts
 *   **Unified Dashboard Overview:** Holds Career Readiness dials, syllabus progress trackers, and company comparison logs.
 *   **AI Interview Studio:** Allows configuring Viva modes, difficulty parameters, and company-specific technical rounds.
 *   **Coding assessment Arena:** Integrated code editors with runtime test-case consoles.
