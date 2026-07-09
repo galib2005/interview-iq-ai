@@ -390,7 +390,7 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response): Prom
       .map(w => `${w.topic} improved from ${w.previousScore}% to ${w.latestScore}%.`);
 
     // UPGRADE 3: Company Performance Analytics
-    const supportedCompanies = ['TCS', 'Infosys', 'Wipro', 'Accenture', 'Cognizant', 'Capgemini', 'HCL', 'Tech Mahindra', 'Amazon'];
+    const supportedCompanies = ['TCS', 'Infosys', 'Wipro', 'Accenture', 'Cognizant', 'Capgemini', 'HCL', 'Tech Mahindra', 'Amazon', 'Google', 'Microsoft'];
     const companyMetrics: Record<string, { attempts: number; avgScore: number; bestScore: number }> = {};
     supportedCompanies.forEach(c => {
       companyMetrics[c] = { attempts: 0, avgScore: 0, bestScore: 0 };

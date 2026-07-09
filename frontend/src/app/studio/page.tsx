@@ -206,7 +206,7 @@ export default function StudioPage() {
                   className="glass-input text-sm text-white bg-slate-900 border border-white/10 rounded-xl px-4 py-3 cursor-pointer"
                   style={{ colorScheme: 'dark' }}
                 >
-                  {['TCS', 'Infosys', 'Wipro', 'Accenture', 'Cognizant', 'Capgemini', 'HCL', 'Tech Mahindra', 'Amazon'].map(c => (
+                  {['TCS', 'Infosys', 'Wipro', 'Accenture', 'Cognizant', 'Capgemini', 'HCL', 'Tech Mahindra', 'Amazon', 'Google', 'Microsoft'].map(c => (
                     <option key={c} value={c} className="bg-slate-900 text-white">{c}</option>
                   ))}
                 </select>

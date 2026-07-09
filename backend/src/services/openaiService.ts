@@ -1,10 +1,14 @@
 import OpenAI from 'openai';
 import { env } from '../config/env';
 import { IQuestion } from '../models/Interview';
+import { promptService } from './promptService';
 
-let openai: OpenAI | null = null;
-if (env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+let groq: OpenAI | null = null;
+if (env.GROQ_API_KEY) {
+  groq = new OpenAI({
+    apiKey: env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
 }
 
 // ==========================================
@@ -527,6 +531,88 @@ const getMockQuestions = (
           expectedKeywords: ["trust", "disagreement", "listen", "collaboration"]
         }
       );
+    } else if (comp === 'Google') {
+      selectedQuestions.push(
+        {
+          questionText: "DSA (Google Style): Given a binary tree, find the maximum path sum. The path may start and end at any node.",
+          category: 'Coding',
+          difficulty: 'Hard',
+          questionDifficulty: 'Hard',
+          expectedKeywords: ["recursion", "binary tree", "max path", "dfs"],
+          codeTemplate: "function maxPathSum(root) {\n  // Write your JavaScript code here\n}",
+          language: 'javascript',
+          testCases: [{ input: "[1,2,3]", expectedOutput: "6" }]
+        },
+        {
+          questionText: "System Design: Design Google Photos. How would you design storage and search metadata for billions of daily photos?",
+          category: 'Technical',
+          difficulty: 'Hard',
+          questionDifficulty: 'Hard',
+          expectedKeywords: ["s3", "blob storage", "metadata", "indexing", "cdn", "nosql"]
+        },
+        {
+          questionText: "Googleyness: Tell me about a time you worked on a project with ambiguous goals. How did you structure the roadmap?",
+          category: 'Behavioral',
+          difficulty: 'Medium',
+          questionDifficulty: 'Medium',
+          expectedKeywords: ["ambiguity", "clarity", "collaboration", "roadmap"]
+        },
+        {
+          questionText: "Core Theory: Explain how virtual memory thrashing happens and how the OS kernel mitigates it.",
+          category: 'Technical',
+          difficulty: 'Hard',
+          questionDifficulty: 'Hard',
+          expectedKeywords: ["thrashing", "virtual memory", "page fault", "mmu", "working set"]
+        },
+        {
+          questionText: "Behavioral: Describe a situation where you had a major disagreement with your tech lead's architectural decisions. How did you align?",
+          category: 'Behavioral',
+          difficulty: 'Medium',
+          questionDifficulty: 'Medium',
+          expectedKeywords: ["disagreement", "alignment", "communication", "empathy"]
+        }
+      );
+    } else if (comp === 'Microsoft') {
+      selectedQuestions.push(
+        {
+          questionText: "Clean Code & DSA: Design an LRU Cache with O(1) set and get operations. Implement the structure.",
+          category: 'Coding',
+          difficulty: 'Hard',
+          questionDifficulty: 'Hard',
+          expectedKeywords: ["lru", "doubly linked list", "hashmap", "complexity"],
+          codeTemplate: "class LRUCache {\n  constructor(capacity) {}\n  get(key) {}\n  put(key, value) {}\n}",
+          language: 'javascript',
+          testCases: []
+        },
+        {
+          questionText: "OOD Patterns: Design a parking lot system using solid object-oriented design principles and standard design patterns.",
+          category: 'Technical',
+          difficulty: 'Medium',
+          questionDifficulty: 'Medium',
+          expectedKeywords: ["parking lot", "inheritance", "composition", "solid", "singleton", "factory"]
+        },
+        {
+          questionText: "Core Theory: Explain the differences between process and thread context switching. What are the memory overheads involved?",
+          category: 'Technical',
+          difficulty: 'Medium',
+          questionDifficulty: 'Medium',
+          expectedKeywords: ["context switch", "thread", "process", "registers", "pcb", "tlb"]
+        },
+        {
+          questionText: "Behavioral: Microsoft values customer obsession. Describe a time you went above and beyond to solve a customer's pain point.",
+          category: 'Behavioral',
+          difficulty: 'Easy',
+          questionDifficulty: 'Easy',
+          expectedKeywords: ["customer obsession", "feedback", "solution", "empathy"]
+        },
+        {
+          questionText: "Behavioral: Tell me about a time you took ownership of a legacy codebase. How did you improve its stability and refactor technical debt?",
+          category: 'Behavioral',
+          difficulty: 'Medium',
+          questionDifficulty: 'Medium',
+          expectedKeywords: ["legacy", "refactor", "technical debt", "tests"]
+        }
+      );
     } else {
       selectedQuestions.push(
         {
@@ -795,110 +881,45 @@ export const generateInterviewQuestions = async (
   weakTopicsList: string[] = [],
   resumeProjects: any[] = []
 ): Promise<IQuestion[]> => {
-  if (!openai) {
-    console.log('OpenAI key missing. Generating dynamic mock interview questions...');
+  if (!groq) {
+    console.log('Groq key missing. Generating dynamic mock interview questions...');
     return getMockQuestions(role, level, type, skills, companyName, projectName, vivaLevel, weakTopicsList, resumeProjects);
   }
 
   try {
-    let prompt = "";
-    if (type === 'Viva') {
-      prompt = `You are a strict, world-class technical interviewer. 
-Create exactly 3 project-specific viva questions for the project: "${projectName}" at the "${vivaLevel || 'Intermediate'}" level.
-Candidate's project technologies: ${skills.join(', ')}.
-Focus on: project architecture, tech stack justification, deployment strategy, security, and problem solving.
+    const prompt = promptService.getQuestionsPrompt(
+      role,
+      level,
+      type,
+      skills,
+      companyName,
+      projectName,
+      vivaLevel,
+      weakTopicsList,
+      resumeProjects
+    );
 
-Format each question as a JSON object inside a list:
-[
-  {
-    "questionText": "string",
-    "category": "Technical",
-    "difficulty": "${vivaLevel === 'Beginner' ? 'Easy' : vivaLevel === 'Intermediate' ? 'Medium' : 'Hard'}",
-    "expectedKeywords": ["keyword1", "keyword2"]
-  }
-]`;
-    } else if (type === 'Company') {
-      const comp = companyName || 'TCS';
-      if (comp === 'TCS') {
-        prompt = `You are a strict technical recruiter at TCS. Create exactly 5 interview questions for a ${level}-level candidate.
-The interview should contain:
-- 1 Aptitude question (Difficulty: Easy or Medium)
-- 2 Basic Technical questions (Difficulty: Easy or Medium)
-- 2 HR Questions (Difficulty: Easy)
-
-Candidate Resume Skills: ${skills.join(', ')}.`;
-      } else if (comp === 'Amazon') {
-        prompt = `You are a strict technical bar raiser at Amazon. Create exactly 5 interview questions for a ${level}-level candidate.
-The interview should contain:
-- 1 DSA Coding Assessment question (Difficulty: Medium or Hard, placed at Round 1 or Round 5, category: 'Coding', with codeTemplate, language and testCases matching expectations)
-- 1 Problem Solving / System Design question (Difficulty: Hard, category: 'Technical')
-- 3 Behavioral Questions mapping to Amazon Leadership Principles (Category: 'Behavioral')
-
-Candidate Resume Skills: ${skills.join(', ')}.`;
-      } else {
-        prompt = `You are a strict technical recruiter at ${comp}. Create exactly 5 interview questions for a ${level}-level candidate.
-The interview should contain:
-- 1 Aptitude or Logical challenge (Difficulty: Easy)
-- 2 Technical questions (Difficulty: Medium or Hard)
-- 2 HR or behavioral questions (Difficulty: Easy)
-
-Candidate Resume Skills: ${skills.join(', ')}.`;
-      }
-
-      if (weakTopicsList && weakTopicsList.length > 0) {
-        prompt += `\nCRITICAL: The candidate historically struggles with these topics: ${weakTopicsList.join(', ')}. Please adaptively include one question targeting their historically weak topics to evaluate their improvement.`;
-      }
-    } else {
-      prompt = `You are a strict, world-class technical interviewer at a tier-1 technology firm. 
-Create exactly 5 interview questions for a ${level}-level candidate interviewing for a ${role} position.
-Round Type: ${type}.
-Candidate Resume Skills: ${skills.join(', ')}.
-
-ENFORCE DYNAMIC ROUND PROGRESSIONS:
-- Round 1 (Index 0): Basic conceptual question (Difficulty: Easy). If resume skills match (e.g. React), create a question matching that technology.
-- Round 2 (Index 1): Intermediate question (Difficulty: Medium).
-- Round 3 (Index 2): Advanced core concepts question (Difficulty: Hard).
-- Round 4 (Index 3): Scenario-based or troubleshooting question (Difficulty: Hard).
-- Round 5 (Index 4): Coding assessment (only for Technical/Mixed, Category: 'Coding') or an advanced behavioral challenge (for HR round, Category: 'Behavioral').
-
-CRITICAL RULES:
-1. For Software/Web/Frontend/Backend developer roles, if the round is Technical or Mixed, exactly 1 coding question must be placed in Round 5 (Index 4).
-2. Choose language templates and test cases matching the candidate's skills (e.g. Python, Java, JavaScript, or C++).
-3. Do not duplicate questions. Be extremely realistic. No chatbot pleasantries.`;
-
-      if (weakTopicsList && weakTopicsList.length > 0) {
-        prompt += `\nCRITICAL: The candidate historically struggles with these topics: ${weakTopicsList.join(', ')}. Please adaptively incorporate one question targeting their historically weak topics.`;
-      }
-    }
-
-    prompt += `\n\nFormat each question strictly as a JSON object inside a list. The JSON schema must match:
-[
-  {
-    "questionText": "string",
-    "category": "Behavioral" | "Technical" | "Coding",
-    "difficulty": "Easy" | "Medium" | "Hard",
-    "expectedKeywords": ["keyword1", "keyword2"],
-    "codeTemplate": "string (only for Coding category, e.g., 'function solve() { }')",
-    "language": "string (only for Coding category, e.g. 'javascript', 'python', 'cpp', 'java')",
-    "testCases": [{"input": "string", "expectedOutput": "string"}] (only for Coding category)
-  }
-]
-Return ONLY a valid JSON array. Do not include markdown code block syntax.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await groq.chat.completions.create({
+      model: env.GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.6,
+      response_format: { type: 'json_object' }
     });
 
-    const content = response.choices[0].message?.content || '[]';
-    const parsed = JSON.parse(content.trim()) as IQuestion[];
+    let content = response.choices[0].message?.content || '[]';
+    content = content.trim();
+
+    if (content.startsWith('```')) {
+      content = content.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+    }
+
+    const parsed = JSON.parse(content) as IQuestion[];
     return parsed.map(q => ({
       ...q,
       questionDifficulty: q.difficulty
     }));
   } catch (error) {
-    console.error('OpenAI Error generating questions:', error);
+    console.error('Groq Error generating questions:', error);
     return getMockQuestions(role, level, type, skills, companyName, projectName, vivaLevel, weakTopicsList, resumeProjects);
   }
 };
@@ -929,7 +950,7 @@ export const evaluateResponse = async (
   const cleanAnswer = (candidateAnswer || '').trim();
   const cleanCode = (candidateCode || '').trim();
 
-  if (!openai) {
+  if (!groq) {
     // ==========================================
     // OFFLINE SCORING ENGINE (STRICT RUBRICS)
     // ==========================================
@@ -956,11 +977,11 @@ export const evaluateResponse = async (
     if (answerLen === 0 || cleanAnswer.toLowerCase() === "i don't know" || cleanAnswer.toLowerCase() === "don't know" || cleanAnswer.toLowerCase().includes("random text")) {
       // 0-20: Completely wrong or empty
       overallScore = Math.floor(Math.random() * 10) + 5;
-      technicalScore = overallScore;
-      communicationScore = 10;
-      problemSolvingScore = 5;
-      confidenceScore = 5;
-      completenessScore = 0;
+      technicalScore = Math.round(overallScore * 0.25);
+      communicationScore = Math.round(overallScore * 0.20);
+      completenessScore = Math.round(overallScore * 0.20);
+      problemSolvingScore = Math.round(overallScore * 0.20);
+      confidenceScore = overallScore - (technicalScore + communicationScore + completenessScore + problemSolvingScore);
       feedback = "No response was recorded, or the candidate explicitly stated they do not know the answer. This does not demonstrate any familiarity with the topic.";
       weaknesses = ["Failed to answer the question", "No conceptual context delivered"];
       missingConcepts = ["All core concepts covered by the prompt"];
@@ -969,11 +990,11 @@ export const evaluateResponse = async (
     } else if (answerLen < 35) {
       // 21-40: Very weak/shallow understanding (e.g. "JWT is used for authentication")
       overallScore = Math.floor(Math.random() * 15) + 25;
-      technicalScore = Math.max(20, overallScore - 5);
-      communicationScore = Math.floor(Math.random() * 20) + 30;
-      problemSolvingScore = Math.max(20, overallScore - 10);
-      confidenceScore = 40;
-      completenessScore = 20;
+      technicalScore = Math.round(overallScore * 0.25);
+      communicationScore = Math.round(overallScore * 0.20);
+      completenessScore = Math.round(overallScore * 0.20);
+      problemSolvingScore = Math.round(overallScore * 0.20);
+      confidenceScore = overallScore - (technicalScore + communicationScore + completenessScore + problemSolvingScore);
       feedback = `The response is extremely short (${answerLen} chars) and lacks architecture depth, detail, or terminology. Simply stating a definition is insufficient for a professional evaluation.`;
       strengths = ["Correct basic target identification"];
       weaknesses = ["Response is too brief", "Lacks structural details", "No technical metrics or concrete projects cited"];
@@ -982,15 +1003,13 @@ export const evaluateResponse = async (
       suggestedCorrectAnswer = `For a realistic response, you should state: "In my experience, when working with this technology, I prioritize optimizing its core parameters. For example, I implemented this structure in a past project which reduced our API latencies by 35% under heavy stress, verifying session parameters securely."`;
     } else {
       // 41-100: Check keywords dynamically to grade fairly
-      // We look at keywords defined on the question if any
-      // Let's create realistic evaluations
       const score = Math.floor(Math.random() * 30) + 55; // 55-85 average range
-      overallScore = score;
-      technicalScore = score - 2;
-      communicationScore = score + 4;
-      problemSolvingScore = score - 1;
-      confidenceScore = score + 3;
-      completenessScore = score - 3;
+      technicalScore = Math.round(score * 0.25);
+      communicationScore = Math.round(score * 0.20);
+      completenessScore = Math.round(score * 0.20);
+      problemSolvingScore = Math.round(score * 0.20);
+      confidenceScore = Math.round(score * 0.15);
+      overallScore = technicalScore + communicationScore + completenessScore + problemSolvingScore + confidenceScore;
       
       feedback = "The candidate demonstrated a good, structured understanding of the topic and communicated clearly. They covered the key points and showed familiarity with industry standards. To elevate the score to the senior/exceptional range, the response should incorporate advanced trade-offs, real-world examples, and precise engineering terms.";
       strengths = ["Structured thought delivery", "Clear conceptual understanding"];
@@ -1017,60 +1036,59 @@ export const evaluateResponse = async (
   }
 
   // ==========================================
-  // REAL CLIENT OPENAI EVALUATION WRAPPER
+  // REAL CLIENT GROQ EVALUATION WRAPPER
   // ==========================================
   try {
-    const prompt = `You are a strict, senior technical interviewer evaluating a candidate's answer.
-Question Asked: "${questionText}"
-Category: ${category}
-Candidate Answer: "${candidateAnswer}"
-${candidateCode ? `Candidate Code Submitted:\n${candidateCode}` : ''}
+    const prompt = promptService.getEvaluationPrompt(
+      questionText,
+      category,
+      cleanAnswer,
+      cleanCode
+    );
 
-CRITICAL SCORING RULES:
-1. DO NOT inflate scores. Giving 80+ for a simple, short, or incomplete answer is unacceptable.
-2. GRADING RUBRIC:
-   - 0-20: Completely wrong answer, off-topic, random text, or "I don't know".
-   - 21-40: Very weak understanding, major concepts missing, poor explanation, or extremely short answer (e.g., "JWT is used for authentication").
-   - 41-60: Basic understanding, some important concepts missing, average answer.
-   - 61-75: Good answer, covers most concepts, minor mistakes.
-   - 76-89: Strong answer, good examples, clear explanation, realistic terminology.
-   - 90-100: Exceptional answer, industry-level understanding, correct terminology, real-world examples, advanced scaling insights.
-3. Behave like a real interviewer: provide objective feedback. No customer support pleasantries.
-
-Format your response strictly as a JSON object:
-{
-  "technicalScore": number (0 to 100),
-  "communicationScore": number (0 to 100),
-  "problemSolvingScore": number (0 to 100),
-  "confidenceScore": number (0 to 100),
-  "completenessScore": number (0 to 100),
-  "overallScore": number (0 to 100),
-  "feedback": "strict, objective critique explaining score",
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "missingConcepts": ["string"],
-  "improvementSuggestions": ["string"],
-  "suggestedCorrectAnswer": "Ideal industry-level response"
-}
-Return ONLY valid JSON.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await groq.chat.completions.create({
+      model: env.GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
+      response_format: { type: 'json_object' }
     });
 
-    const content = response.choices[0].message?.content || '{}';
-    return JSON.parse(content.trim());
+    let content = response.choices[0].message?.content || '{}';
+    content = content.trim();
+
+    if (content.startsWith('```')) {
+      content = content.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+    }
+
+    const parsed = JSON.parse(content);
+    
+    // Mathematically sum scores to compute final score
+    const technical = parsed.technicalScore || 0;
+    const communication = parsed.communicationScore || 0;
+    const completeness = parsed.completenessScore || 0;
+    const problemSolving = parsed.problemSolvingScore || 0;
+    const confidence = parsed.confidenceScore || 0;
+    
+    const calculatedScore = technical + communication + completeness + problemSolving + confidence;
+    
+    return {
+      ...parsed,
+      score: calculatedScore,
+      technicalScore: technical,
+      communicationScore: communication,
+      completenessScore: completeness,
+      problemSolvingScore: problemSolving,
+      confidenceScore: confidence
+    };
   } catch (error) {
-    console.error('OpenAI Error evaluating answer:', error);
+    console.error('Groq Error evaluating answer:', error);
     return {
       score: 50,
-      technicalScore: 45,
-      communicationScore: 55,
-      problemSolvingScore: 48,
-      confidenceScore: 52,
-      completenessScore: 45,
+      technicalScore: 12,
+      communicationScore: 10,
+      problemSolvingScore: 10,
+      confidenceScore: 8,
+      completenessScore: 10,
       feedback: 'Offline fallback evaluation executed due to API error.',
       strengths: ['Candidate attempted a response.'],
       weaknesses: ['Evaluation model timed out.'],
@@ -1108,7 +1126,7 @@ export const generateFinalFeedback = async (
   recommendedLearningPath: string[];
   suggestedResources: string[];
 }> => {
-  if (!openai) {
+  if (!groq) {
     // ==========================================
     // OFFLINE FINAL FEEDBACK GENERATOR
     // ==========================================
@@ -1173,70 +1191,28 @@ export const generateFinalFeedback = async (
   }
 
   // ==========================================
-  // CLIENT OPENAI FINAL FEEDBACK IMPLEMENTATION
+  // CLIENT GROQ FINAL FEEDBACK IMPLEMENTATION
   // ==========================================
   try {
-    const prompt = `You are a career growth advisor writing a final assessment report for a candidate's mock interview.
-Role: ${role}
-Experience Level: ${level}
-Completed Interview Questions and Evaluations:
-${JSON.stringify(
-  questions.map((q) => ({
-    question: q.questionText,
-    category: q.category,
-    answer: q.candidateAnswer || q.candidateCode,
-    score: q.aiEvaluation?.score,
-    feedback: q.aiEvaluation?.feedback,
-    technicalScore: q.aiEvaluation?.technicalScore,
-    communicationScore: q.aiEvaluation?.communicationScore,
-  })),
-  null,
-  2
-)}
+    const prompt = promptService.getFinalFeedbackPrompt(role, level, questions);
 
-STRICT ASSESSMENTS:
-Determine overall rating:
-- Hire: average score >= 75 and clear depth shown.
-- Borderline: average score 55 to 74.
-- No Hire: average score < 55.
-
-Generate a comprehensive final performance report in JSON format:
-{
-  "overallScore": number (0 to 100),
-  "scores": {
-    "communication": number (0 to 100),
-    "technical": number (0 to 100),
-    "confidence": number (0 to 100),
-    "problemSolving": number (0 to 100)
-  },
-  "feedbackSummary": "honest assessment paragraph summarizing role fit",
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "missingConcepts": ["string"],
-  "roadmap": [
-    {
-      "step": "Detailed step for roadmap",
-      "resources": ["Resource or site link 1", "Resource or site link 2"]
-    }
-  ],
-  "overallRating": "Hire" | "Borderline" | "No Hire",
-  "technicalStrength": "Detailed analysis of technical performance",
-  "communicationStrength": "Detailed critique of communication skills",
-  "recommendedLearningPath": ["Learning goal 1", "Learning goal 2"],
-  "suggestedResources": ["Book/Resource 1", "Platform/Site 2"]
-}
-Return ONLY valid JSON.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await groq.chat.completions.create({
+      model: env.GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
+      response_format: { type: 'json_object' }
     });
 
-    const content = response.choices[0].message?.content || '{}';
-    return JSON.parse(content.trim());
+    let content = response.choices[0].message?.content || '{}';
+    content = content.trim();
+
+    if (content.startsWith('```')) {
+      content = content.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+    }
+
+    return JSON.parse(content);
   } catch (error) {
-    console.error('OpenAI Error generating final feedback:', error);
+    console.error('Groq Error generating final feedback:', error);
     return {
       overallScore: 60,
       scores: { communication: 65, technical: 58, confidence: 62, problemSolving: 60 },
@@ -1276,7 +1252,7 @@ export const extractSkillsFromResume = async (resumeText: string): Promise<{
     };
   }>;
 }> => {
-  if (!openai) {
+  if (!groq) {
     return {
       skills: ['TypeScript', 'JavaScript', 'Node.js', 'React', 'MongoDB', 'REST APIs', 'Express.js'],
       experienceSummary: 'Experienced developer with background in building web interfaces, backend servers, and integrating databases.',
@@ -1338,51 +1314,25 @@ export const extractSkillsFromResume = async (resumeText: string): Promise<{
   }
 
   try {
-    const prompt = `You are an expert ATS resume checker and recruiter. Analyze this resume text and:
-1. Extract a clean list of technical and soft skills (max 15 skills).
-2. Write a brief 2-3 sentence professional summary of experience.
-3. Calculate an ATS match score (0-100) based on standard industry resume formatting, readability, and content depth.
-4. Generate a concise resume strength report.
-5. Identify common industry skills that are missing based on their profile.
-6. List 3 key suggested improvements.
-7. Extract key projects (up to 3) from the resume and generate exactly 3 viva questions per skill tier (Beginner, Intermediate, Advanced) for each project. Focus on architecture, technology choices, deployment, and security.
+    const prompt = promptService.getResumeParsingPrompt(resumeText);
 
-Resume text:
-"${resumeText}"
-
-Return the result in JSON format:
-{
-  "skills": ["Skill1", "Skill2", ...],
-  "experienceSummary": "summary here",
-  "atsScore": 85,
-  "strengthReport": "strength analysis summary",
-  "missingSkills": ["MissingSkill1", ...],
-  "suggestedImprovements": ["Improvement1", "Improvement2", "Improvement3"],
-  "projects": [
-    {
-      "projectName": "Project Name",
-      "technologies": ["Tech1", "Tech2"],
-      "description": "Short description of what the project does",
-      "vivaQuestions": {
-        "Beginner": ["Question 1", "Question 2", "Question 3"],
-        "Intermediate": ["Question 1", "Question 2", "Question 3"],
-        "Advanced": ["Question 1", "Question 2", "Question 3"]
-      }
-    }
-  ]
-}
-Return ONLY valid JSON.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await groq.chat.completions.create({
+      model: env.GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
+      response_format: { type: 'json_object' }
     });
 
-    const content = response.choices[0].message?.content || '{}';
-    return JSON.parse(content.trim());
+    let content = response.choices[0].message?.content || '{}';
+    content = content.trim();
+
+    if (content.startsWith('```')) {
+      content = content.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+    }
+
+    return JSON.parse(content);
   } catch (error) {
-    console.error('OpenAI Error parsing resume:', error);
+    console.error('Groq Error parsing resume:', error);
     return {
       skills: ['TypeScript', 'JavaScript', 'React', 'Node.js'],
       experienceSummary: 'Could not parse summary from resume. Local fallback applied.',
@@ -1435,15 +1385,11 @@ export const adjustNextQuestion = async (
 
   if (score < 55) {
     nextQuestion.difficulty = 'Easy';
-    if (openai) {
+    if (groq) {
       try {
-        const prompt = `The candidate gave a weak response (score ${score}/100) to this interview question:
-"${currentQuestionText}"
-Candidate Answer: "${candidateAnswer}"
-
-Create a follow-up question that asks them to clarify or elaborate on what was missing from their answer, but keep it in context of their interview. Keep the follow-up text short (1-2 sentences). Return ONLY the question text.`;
-        const res = await openai.chat.completions.create({
-          model: 'gpt-4o',
+        const prompt = promptService.getAdjustNextQuestionPrompt(currentQuestionText, candidateAnswer, score, false);
+        const res = await groq.chat.completions.create({
+          model: env.GROQ_MODEL,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.6
         });
@@ -1459,15 +1405,11 @@ Create a follow-up question that asks them to clarify or elaborate on what was m
     }
   } else if (score > 85) {
     nextQuestion.difficulty = 'Hard';
-    if (openai) {
+    if (groq) {
       try {
-        const prompt = `The candidate gave an excellent response (score ${score}/100) to this interview question:
-"${currentQuestionText}"
-Candidate Answer: "${candidateAnswer}"
-
-Create a deeper, highly advanced follow-up question on this topic that tests their senior-level expertise. Keep the text short (1-2 sentences). Return ONLY the question text.`;
-        const res = await openai.chat.completions.create({
-          model: 'gpt-4o',
+        const prompt = promptService.getAdjustNextQuestionPrompt(currentQuestionText, candidateAnswer, score, true);
+        const res = await groq.chat.completions.create({
+          model: env.GROQ_MODEL,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.6
         });
